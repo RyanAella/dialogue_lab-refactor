@@ -1,0 +1,147 @@
+/**
+ * @module ScenarioService
+ * Service for managing exercise data and scenario configurations.
+ * Dynamic version that works with all path configurations.
+ * Handles both transformation exercises and simulation scenarios.
+ */
+
+import { API } from '../services/api.js';
+import { APP_CONFIG, EXERCISE_TYPES, SCENARIO_DEFAULTS, SCENARIO_FILE_KEYS } from '../core/config.js';
+import { Utils } from '../utils/utils.js';
+
+/**
+ * Service for managing exercise data and scenario configurations.
+ */
+export const ScenarioService = {
+  /**
+   * Internal storage for the exercise pool.
+   * @type {Array<Object>}
+   * @private
+   */
+  _exercises: [],
+
+  /**
+   * The currently active scenario and its computed metadata.
+   * @type {Object|null}
+   * @private
+   */
+  _active: null,
+
+  /**
+   * Pool for transformation statements.
+   * Only used in transformation mode.
+   * @type {string[]}
+   * @private
+   */
+  _statements: [],
+
+  /**
+   * Loads the exercise pool from the server.
+   * Appends a timestamp to the URL to prevent browser caching.
+   * @async
+   * @returns {Promise<Array<Object>>} The list of loaded exercises.
+   * @throws {Error} If the network request fails or the response is invalid.
+   */
+  async loadPool() {
+    const url = `${APP_CONFIG.EXERCISES_FILE}?t=${Date.now()}`;
+    console.log('[DEBUG] Loading exercises from:', url);
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.error('[DEBUG] Failed to load exercises. Status:', response.status, response.statusText);
+      throw new Error("Exercises could not be loaded");
+    }
+
+    this._exercises = await response.json();
+    console.log('[DEBUG] Loaded exercises:', this._exercises.length, 'items:', this._exercises);
+    return this._exercises;
+  },
+
+  /**
+   * Filters the internal exercise pool by its type.
+   * @param {string} type - The exercise category to filter by (e.g., EXERCISE_TYPES.TRANSFORMATION).
+   * @returns {Array<Object>} A list of matching exercises.
+   */
+  getExercisesByType(type) {
+    const result = this._exercises.filter((ex) => ex.type === type);
+    console.log('[DEBUG] getExercisesByType(', type, '):', result.length, 'items');
+    return result;
+  },
+
+  /**
+   * Fetches the full scenario configuration and associated prompts for a given ID.
+   * Enriches the data with computed metadata like role names.
+   * Handles both transformation and simulation scenarios.
+   * @async
+   * @param {string} id - The unique identifier for the exercise.
+   * @returns {Promise<Object>} The enriched scenario configuration.
+   * @throws {Error} If the exercise ID is not found in the pool.
+   */
+  async loadScenario(id) {
+    const exercise = this._exercises.find((ex) => ex.id === id);
+    if (!exercise) {
+      console.error('[DEBUG] Exercise not found:', id, 'Available:', this._exercises.map(e => e.id));
+      throw new Error(`Exercise ${id} not found`);
+    }
+
+    const isTransform = exercise.type === EXERCISE_TYPES.TRANSFORMATION;
+    const filePath = isTransform
+        ? exercise.config[SCENARIO_FILE_KEYS.INSTRUCTION_FILE]
+        : exercise.config[SCENARIO_FILE_KEYS.SCENARIO_FILE];
+
+    const basePath = (typeof window !== 'undefined' ? window.DIALOGUE_LAB_CONFIG.BASE_PATH : '') || '';
+    // Entferne führenden / von filePath und füge basePath davor an
+    const cleanFilePath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
+    const fullPath = `${basePath}${cleanFilePath}`;
+    console.log('[DEBUG] Loading scenario from:', fullPath, 'for exercise:', id);
+
+    const data = await API.fetchCompleteScenario(fullPath);
+
+    // Compute additional metadata for the active session
+    this._active = {
+      ...data,
+      id: exercise.id,
+      type: exercise.type,
+      roleName: isTransform
+          ? data.roleLabel || SCENARIO_DEFAULTS.ROLE_NAME
+          : Utils.extractRoleName(data.instructionSection, data.roleLabel),
+      shortInstruction: data.shortInstruction || SCENARIO_DEFAULTS.SHORT_INSTRUCTION,
+    };
+
+    // Load additional statements if it's a transformation exercise
+    if (isTransform && exercise.config[SCENARIO_FILE_KEYS.SOURCE_FILE]) {
+      // Korrigiere auch den sourceFile Pfad
+      const sourceFilePath = exercise.config[SCENARIO_FILE_KEYS.SOURCE_FILE];
+      const cleanSourcePath = sourceFilePath.startsWith('/') ? sourceFilePath.substring(1) : sourceFilePath;
+      const sourceUrl = `${basePath}${cleanSourcePath}?t=${Date.now()}`;
+      console.log('[DEBUG] Loading statements from:', sourceUrl);
+      const resp = await fetch(sourceUrl);
+      const text = await resp.text();
+      this._statements = text
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter((l) => l && !l.startsWith(SCENARIO_DEFAULTS.COMMENT_PREFIX));
+    }
+
+    return this._active;
+  },
+
+  /**
+   * Retrieves the currently active scenario state.
+   * @returns {Object|null} The active scenario object or null if none is loaded.
+   */
+  getActive() {
+    return this._active;
+  },
+
+  /**
+   * Returns the statements for the active transformation exercise.
+   * Only relevant for transformation mode.
+   * @param {boolean} [shuffled=false] - Whether to return a shuffled copy.
+   * @returns {string[]}
+   */
+  getStatements(shuffled = false) {
+    return shuffled
+        ? Utils.shuffleArray(this._statements)
+        : [...this._statements];
+  },
+};
