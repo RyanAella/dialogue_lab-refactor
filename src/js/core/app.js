@@ -45,7 +45,12 @@ async function startApp() {
   DataLogger.setAutoUpload(true);
   DataLogger.init();
 
-  await loadExercises();
+  const exercisesLoaded = await loadExercises();
+  if (!exercisesLoaded) {
+    UI.updateStatus("error", UI_TEXTS.errors.exercisesLoadFailed || "Failed to load exercises. Please try reloading the page.");
+    return;
+  }
+
   await UI.init();
   setupEventListeners({
     switchToTransformationMode,
@@ -56,15 +61,22 @@ async function startApp() {
   initResearcherMenu();
 }
 
-// Initialization on DOM ready
-document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    await startApp();
-  } catch (error) {
+// Initialization on DOM ready - handle both early and late script loading
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  startApp().catch(error => {
     console.error("Critical initialization error:", error);
     UI.updateStatus("error", UI_TEXTS.errors.initializationError);
-  }
-});
+  });
+} else {
+  document.addEventListener("DOMContentLoaded", async () => {
+    try {
+      await startApp();
+    } catch (error) {
+      console.error("Critical initialization error:", error);
+      UI.updateStatus("error", UI_TEXTS.errors.initializationError);
+    }
+  });
+}
 
 // Make key functions globally available for export.js and onclick attributes in index.html
 window.restartTransformationExercise = restartTransformationExercise;

@@ -6,6 +6,7 @@
  */
 
 import { Utils } from "../utils/utils.js";
+import { getFullPath } from "../core/config.js";
 
 /**
  * Simple in-memory cache for frequently accessed text resources.
@@ -92,9 +93,7 @@ export const API = {
       return cached.content;
     }
 
-    const basePath = (typeof window !== 'undefined' ? window.DIALOGUE_LAB_CONFIG.BASE_PATH : '') || '';
-    const url = `${basePath}prompts/${type}/${promptName}.txt`;
-    console.log('[DEBUG] API.loadPromptContent loading:', url);
+    const url = getFullPath(`prompts/${type}/${promptName}.txt`);
     const response = await this._request(url);
     const content = (await response.text()).trim();
 
@@ -115,10 +114,14 @@ export const API = {
    * @async
    */
   async fetchCompleteScenario(filePath) {
-    console.log('[DEBUG] API.fetchCompleteScenario loading:', filePath);
+    const cacheKey = `scenario_${filePath}`;
+    const cached = CACHE.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.content;
+    }
+
     const response = await this._request(filePath);
     const text = await response.text();
-    console.log('[DEBUG] API.fetchCompleteScenario loaded:', filePath, 'Length:', text.length);
 
     const { metaSection, instructionSection } = Utils.parseScenarioContent(text);
 
@@ -152,7 +155,11 @@ export const API = {
         }),
     );
 
-    return { ...config, prompts };
+    const result = { ...config, prompts };
+    // Cache speichern
+    CACHE.set(cacheKey, { content: result, timestamp: Date.now() });
+
+    return result;
   },
 
   /**
@@ -163,16 +170,24 @@ export const API = {
    * @async
    */
   async fetchScenarioTitle(filePath) {
-    console.log('[DEBUG] API.fetchScenarioTitle loading:', filePath);
-    const response = await this._request(filePath).catch(() => null);
-    if (!response) {
-      console.error('[DEBUG] API.fetchScenarioTitle failed for:', filePath);
-      return null;
+    // Normalize to full path (accepts both relative and absolute paths)
+    const fullPath = getFullPath(filePath);
+    const cacheKey = `title_${fullPath}`;
+    const cached = CACHE.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      return cached.content;
     }
+
+    const response = await this._request(fullPath).catch(() => null);
+    if (!response) return null;
+
     const content = await response.text();
     const titleMatch = content.match(/title:\s*(.*)/);
     const result = titleMatch ? titleMatch[1].trim() : null;
-    console.log('[DEBUG] API.fetchScenarioTitle result:', result);
+
+    // Cache speichern
+    CACHE.set(cacheKey, { content: result, timestamp: Date.now() });
+
     return result;
   },
 

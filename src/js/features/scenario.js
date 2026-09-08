@@ -6,7 +6,7 @@
  */
 
 import { API } from '../services/api.js';
-import { APP_CONFIG, EXERCISE_TYPES, SCENARIO_DEFAULTS, SCENARIO_FILE_KEYS } from '../core/config.js';
+import { APP_CONFIG, EXERCISE_TYPES, SCENARIO_DEFAULTS, SCENARIO_FILE_KEYS, getFullPath } from '../core/config.js';
 import { Utils } from '../utils/utils.js';
 
 /**
@@ -43,16 +43,16 @@ export const ScenarioService = {
    * @throws {Error} If the network request fails or the response is invalid.
    */
   async loadPool() {
-    const url = `${APP_CONFIG.EXERCISES_FILE}?t=${Date.now()}`;
-    console.log('[DEBUG] Loading exercises from:', url);
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.error('[DEBUG] Failed to load exercises. Status:', response.status, response.statusText);
+    const response = await API._request(APP_CONFIG.EXERCISES_FILE);
+    if (!response) {
       throw new Error("Exercises could not be loaded");
+    }
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      throw new Error(`Failed to load exercises: ${response.status} ${response.statusText || errorText}`);
     }
 
     this._exercises = await response.json();
-    console.log('[DEBUG] Loaded exercises:', this._exercises.length, 'items:', this._exercises);
     return this._exercises;
   },
 
@@ -62,9 +62,7 @@ export const ScenarioService = {
    * @returns {Array<Object>} A list of matching exercises.
    */
   getExercisesByType(type) {
-    const result = this._exercises.filter((ex) => ex.type === type);
-    console.log('[DEBUG] getExercisesByType(', type, '):', result.length, 'items');
-    return result;
+    return this._exercises.filter((ex) => ex.type === type);
   },
 
   /**
@@ -79,7 +77,6 @@ export const ScenarioService = {
   async loadScenario(id) {
     const exercise = this._exercises.find((ex) => ex.id === id);
     if (!exercise) {
-      console.error('[DEBUG] Exercise not found:', id, 'Available:', this._exercises.map(e => e.id));
       throw new Error(`Exercise ${id} not found`);
     }
 
@@ -88,11 +85,7 @@ export const ScenarioService = {
         ? exercise.config[SCENARIO_FILE_KEYS.INSTRUCTION_FILE]
         : exercise.config[SCENARIO_FILE_KEYS.SCENARIO_FILE];
 
-    const basePath = (typeof window !== 'undefined' ? window.DIALOGUE_LAB_CONFIG.BASE_PATH : '') || '';
-    // Entferne führenden / von filePath und füge basePath davor an
-    const cleanFilePath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
-    const fullPath = `${basePath}${cleanFilePath}`;
-    console.log('[DEBUG] Loading scenario from:', fullPath, 'for exercise:', id);
+    const fullPath = getFullPath(filePath);
 
     const data = await API.fetchCompleteScenario(fullPath);
 
@@ -109,17 +102,18 @@ export const ScenarioService = {
 
     // Load additional statements if it's a transformation exercise
     if (isTransform && exercise.config[SCENARIO_FILE_KEYS.SOURCE_FILE]) {
-      // Korrigiere auch den sourceFile Pfad
       const sourceFilePath = exercise.config[SCENARIO_FILE_KEYS.SOURCE_FILE];
-      const cleanSourcePath = sourceFilePath.startsWith('/') ? sourceFilePath.substring(1) : sourceFilePath;
-      const sourceUrl = `${basePath}${cleanSourcePath}?t=${Date.now()}`;
-      console.log('[DEBUG] Loading statements from:', sourceUrl);
-      const resp = await fetch(sourceUrl);
-      const text = await resp.text();
-      this._statements = text
-          .split(/\r?\n/)
-          .map((l) => l.trim())
-          .filter((l) => l && !l.startsWith(SCENARIO_DEFAULTS.COMMENT_PREFIX));
+      const sourceUrl = getFullPath(sourceFilePath);
+      const resp = await API._request(sourceUrl);
+      if (!resp) {
+        console.warn("[Scenario] Failed to load source file:", sourceFilePath);
+      } else {
+        const text = await resp.text();
+        this._statements = text
+            .split(/\r?\n/)
+            .map((l) => l.trim())
+            .filter((l) => l && !l.startsWith(SCENARIO_DEFAULTS.COMMENT_PREFIX));
+      }
     }
 
     return this._active;

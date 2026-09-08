@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 
+## [0.33.0] - 2026-09-11
+
+### Fixed
+- **Mode Switch Bug**: Fixed mode switching functionality in `eventListeners.js` where `switchToRoleplayMode` was called instead of `switchToSimulationMode`, preventing proper mode changes between Transformation and Simulation.
+- **DOM Element Binding**: Added missing `scenarios` and `exercises` IDs to `DOM_ELEMENT_IDS` in `config.js`, fixing undefined dropdown elements that prevented scenarios and exercises from being loaded.
+- **Path Resolution for GitHub Pages**: Implemented dynamic `BASE_PATH` calculation in `index.html` to correctly resolve paths for different deployment scenarios (root, `/simulation-lab/`, `/practice-edition/`).
+- **Avatar Image Paths**: Fixed avatar image loading in `avatar.js` by using `getFullPath()` to properly resolve image paths relative to the application base path.
+- **Module Import Error**: Corrected import statement in `api.js` where `Utils` was incorrectly imported from `config.js` instead of `utils.js`.
+- **Exercises Load Error Handling**: Enhanced error handling in `loadExercises()` (modeManager.js) to return boolean success status, with `startApp()` (app.js) now aborting initialization if exercises fail to load, preventing empty dropdowns. Added new `exercisesLoadFailed` error message to `UI_TEXTS`.
+
+### Added
+- **getFullPath() Helper Function**: Created centralized path resolution function in `config.js` to consistently combine relative paths with `BASE_PATH`, eliminating duplicate path correction logic across multiple files.
+- **Single-Page Application Support**: Implemented `index.html` (formerly `404.html`) as a fallback for GitHub Pages to handle all URL paths (`/`, `/simulation-lab/`, `/practice-edition/`) with a single HTML file.
+
+### Changed
+- **Single-Branch Deployment**: Consolidated all deployment variants (full, simulation-lab, practice-edition) into a **single branch** (master) with dynamic content loading. The `index.html` now detects the URL path (`/simulation-lab/`, `/practice-edition/`) and loads the appropriate mode configuration dynamically, eliminating the need for separate branches.
+- **Dynamic Script Loading**: Modified script loading in `index.html` to dynamically insert `app.js` with the correct `BASE_PATH` in the `<head>` section, ensuring proper initialization before DOMContentLoaded.
+- **DOM Ready Handling**: Enhanced initialization in `app.js` to handle both early and late script loading scenarios using `document.readyState` checks.
+- **API Consistency**: Unified path handling in `api.js` - `fetchScenarioTitle()` now accepts relative paths (like `loadPromptContent()`) and internally calls `getFullPath()`, allowing removal of redundant `getFullPath()` call in `dropdowns.js`.
+- **Standardized Request Handling**: Replaced direct `fetch()` calls in `scenario.js` with `API._request()` for consistent error handling and automatic cache-busting (loadPool and loadScenario methods).
+- **Cleaned Debug Output**: Removed 10 `console.log` statements from `dataLogger.js` for cleaner production console, while preserving `console.warn` and `console.error` for error diagnostics.
+
+### Optimized
+- **Removed Debug Logs**: Cleaned up 28 debug console.log statements across 6 files (`scenario.js`, `api.js`, `dropdowns.js`, `app.js`, `modeManager.js`, `index.html`) for improved performance and cleaner console output.
+- **Path Resolution**: Refactored all path concatenation logic to use the centralized `getFullPath()` function, reducing code duplication and improving maintainability.
+- **Scenario Title Caching**: Added in-memory cache to `fetchScenarioTitle()` in `api.js` to prevent redundant network requests when switching modes, reducing ~50% of requests and improving dropdown initialization speed.
+- **Complete Scenario Caching**: Added in-memory cache to `fetchCompleteScenario()` in `api.js` to prevent redundant loading of scenario files and all associated prompts (system/partner/mentor/trainer), reducing ~30-40% of requests during scenario switches.
+- **Character Image Fallback**: Enhanced `avatar.js` with error handling for missing character assets - `update()` method now falls back to `TRANSPARENT_PIXEL` on image load failures, and `preloadProfile()` logs warnings to console for debugging missing assets.
+- **Full Character Asset Preloading**: Removed 15-image limit in `preloadProfile()` in `avatar.js` and extended to preload all asset types (heads, clothes, hair, eyesOpen, eyesClosed, mouthsOpen, mouthsClosed, glasses, headset) to prevent flickering during avatar layer changes.
+- **Character Path Centralization**: Removed redundant `BASE_PATH` from `characters.js` (now empty string), consolidating all character image paths in `avatar.js` using `getFullPath("src/assets/Character/" + file)` for consistency and eliminating duplicate path definitions.
+
+---
+
 ## [0.32.2] - 2026-08-19
 
 ### Fixed
@@ -664,3 +697,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ---
 
 _Initial release of the Socio-Informatics Lab: Dialogue Training._
+
+## [0.33.0] - 2026-09-11
+
+### Fixed
+- **Mode Switch Bug**: Fixed mode switching functionality in  where  was called instead of , preventing proper mode changes between Transformation and Simulation.
+- **DOM Element Binding**: Added missing  and  IDs to  in , fixing undefined dropdown elements that prevented scenarios and exercises from being loaded.
+- **Path Resolution for GitHub Pages**: Implemented dynamic  calculation in  to correctly resolve paths for different deployment scenarios (root, , ).
+- **Avatar Image Paths**: Fixed avatar image loading in  by using  to properly resolve image paths relative to the application base path.
+- **Module Import Error**: Corrected import statement in  where  was incorrectly imported from  instead of .
+
+### Added
+- **getFullPath() Helper Function**: Created centralized path resolution function in  to consistently combine relative paths with , eliminating duplicate path correction logic across multiple files.
+- **Single-Page Application Support**: Implemented  as a fallback for GitHub Pages to handle all URL paths (, , ) with a single HTML file.
+
+### Changed

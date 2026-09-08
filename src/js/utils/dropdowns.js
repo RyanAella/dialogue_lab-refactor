@@ -7,7 +7,7 @@
 import { UI } from "../ui/ui.js";
 import { API } from "../services/api.js";
 import { ScenarioService } from "../features/scenario.js";
-import { EXERCISE_TYPES, UI_TEXTS } from "../core/config.js";
+import { EXERCISE_TYPES, UI_TEXTS, getFullPath } from "../core/config.js";
 
 /**
  * Determines the appropriate file path for a given exercise type.
@@ -35,47 +35,29 @@ function getExerciseFilePath(ex) {
  * @param {string} placeholder - The default disabled option text.
  */
 async function initDropdown(type, selectElement, placeholder) {
-  console.log('[DEBUG] initDropdown called for type:', type, 'element:', selectElement?.id);
   if (!selectElement) {
-    console.error('[DEBUG] initDropdown: selectElement is null/undefined');
     return;
   }
 
   selectElement.innerHTML = `<option value="" selected disabled>${placeholder}</option>`;
   const filtered = ScenarioService.getExercisesByType(type);
-  console.log('[DEBUG] initDropdown: filtered exercises for', type, ':', filtered.length);
 
   if (filtered.length === 0) {
-    console.error('[DEBUG] initDropdown: No exercises found for type:', type);
     selectElement.innerHTML = `<option value="" disabled>${UI_TEXTS.errors.noEntriesAvailable}</option>`;
     selectElement.disabled = true;
     return;
   }
 
-  console.log('[DEBUG] initDropdown: Loading titles for', filtered.length, 'exercises');
-  
-  // Basis-Pfad für korrekte Pfadauflösung
-  const basePath = (typeof window !== 'undefined' ? window.DIALOGUE_LAB_CONFIG.BASE_PATH : '') || '';
-  
   for (const ex of filtered) {
     try {
-      let filePath = getExerciseFilePath(ex);
-      if (filePath) {
-        // Entferne führenden / und füge basePath davor an
-        const cleanFilePath = filePath.startsWith('/') ? filePath.substring(1) : filePath;
-        filePath = `${basePath}${cleanFilePath}`;
-      }
-      console.log('[DEBUG] initDropdown: Loading title for exercise:', ex.id, 'from file:', filePath);
+      const filePath = getExerciseFilePath(ex);
       const title = filePath ? (await API.fetchScenarioTitle(filePath)) || ex.id : ex.id;
       selectElement.add(new Option(title, ex.id));
-      console.log('[DEBUG] initDropdown: Added exercise:', ex.id, 'with title:', title);
     } catch (e) {
-      console.error('[DEBUG] Metadata load error for', ex.id, ':', e);
       selectElement.add(new Option(ex.id, ex.id)); // Fallback: zeige wenigstens die ID an
     }
   }
   selectElement.disabled = false;
-  console.log('[DEBUG] initDropdown: Completed for type:', type);
 }
 
 /**
@@ -83,13 +65,11 @@ async function initDropdown(type, selectElement, placeholder) {
  * @async
  */
 export async function initScenarioDropdown() {
-  console.log('[DEBUG] initScenarioDropdown called');
   await initDropdown(
       EXERCISE_TYPES.SIMULATION,
       UI.elements.scenarioSelect,
       UI_TEXTS.input.chooseScenario || "Wähle ein Szenario...",
   );
-  console.log('[DEBUG] initScenarioDropdown completed');
 }
 
 /**
@@ -97,11 +77,9 @@ export async function initScenarioDropdown() {
  * @async
  */
 export async function initExerciseDropdown() {
-  console.log('[DEBUG] initExerciseDropdown called');
   await initDropdown(
       EXERCISE_TYPES.TRANSFORMATION,
       UI.elements.exerciseSelect,
       UI_TEXTS.input.chooseExercise || "Wähle eine Übung...",
   );
-  console.log('[DEBUG] initExerciseDropdown completed');
 }

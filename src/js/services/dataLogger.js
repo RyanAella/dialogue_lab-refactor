@@ -88,7 +88,6 @@ export const DataLogger = {
   init() {
     this._allConversations = loadFromLocalStorage();
     failedUploadQueue = loadFailedUploads();
-    console.log(`DataLogger initialized. Loaded ${this._allConversations.length} previous conversations.`);
     if (this.config.retryFailedUploads && failedUploadQueue.length > 0) {
       setTimeout(() => this._retryFailedUploads(), 1000);
     }
@@ -124,7 +123,6 @@ export const DataLogger = {
   async _retryFailedUploads() {
     const queue = loadFailedUploads();
     if (queue.length === 0) return;
-    console.log(`Retrying ${queue.length} failed uploads...`);
     let successful = 0;
     const newQueue = [];
     for (const item of queue) {
@@ -150,7 +148,6 @@ export const DataLogger = {
       }
     }
     saveFailedUploads(newQueue);
-    console.log(`Retry complete: ${successful}/${queue.length} uploads successful`);
   },
 
   startNewConversation(metadata = {}) {
@@ -165,7 +162,6 @@ export const DataLogger = {
       startDatetime: getFormattedTimestamp().datetime,
       ...metadata
     };
-    console.log(`Started new conversation with ID: ${this._currentConversationId} Metadata:`, this._currentMetadata);
   },
 
   _saveCurrentConversation() {
@@ -184,7 +180,6 @@ export const DataLogger = {
       this._allConversations.push(conversationData);
     }
     saveToLocalStorage(this._allConversations);
-    console.log(`Saved conversation to local storage: ${this._currentConversationId}`);
   },
 
   /**
@@ -216,7 +211,6 @@ export const DataLogger = {
 
   updateConversationMetadata(metadata = {}) {
     this._currentMetadata = { ...this._currentMetadata, ...metadata };
-    console.log("Updated conversation metadata:", this._currentMetadata);
   },
 
   async endConversation() {
@@ -227,7 +221,6 @@ export const DataLogger = {
     this._conversationBuffer = [];
     this._currentConversationId = null;
     this._currentMetadata = {};
-    console.log(`Ended conversation: none`);
   },
 
   async uploadCurrentConversation() {
@@ -242,18 +235,15 @@ export const DataLogger = {
       endDatetime: getFormattedTimestamp().datetime,
       turns: [...this._conversationBuffer]
     };
-    console.log(`Uploading conversation to backend:`, conversationData);
     return this._uploadToBackend(conversationData);
   },
 
   setBackendEndpoint(url) {
     this._backendEndpoint = url;
-    console.log("Backend endpoint set to:", url);
   },
 
   setAutoUpload(enabled) {
     this.config.autoUpload = enabled;
-    console.log("Auto-upload", enabled ? "enabled" : "disabled");
   },
 
   async uploadAllConversations() {

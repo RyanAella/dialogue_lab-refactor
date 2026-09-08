@@ -107,7 +107,8 @@ export const UI_TEXTS = {
         noEntriesAvailable: "Keine Einträge verfügbar",
         loadingError: "Ladefehler.",
         contentLoadingError: "Ladefehler",
-        initializationError: "Die Anwendung konnte nicht korrekt initialisiert werden."
+        initializationError: "Die Anwendung konnte nicht korrekt initialisiert werden.",
+        exercisesLoadFailed: "Übungen und Szenarien konnten nicht geladen werden. Bitte lade die Seite neu."
     },
     input: {
         simulation: (roleName) => `Nachricht an ${roleName}...`,
@@ -245,3 +246,15 @@ export const AVATAR_CONFIG = {
     LAYERS: ["body", "clothes", "hair", "glasses", "headset", "hands", "eyes", "mouth"]
 };
 export const AVATAR_ANIMATION = { MOUTH_INTERVAL: 150, BLINK_DURATION: 150, BLINK_INTERVAL_MIN: 2000, BLINK_INTERVAL_MAX: 6000 };
+/**
+ * Kombiniert einen relativen Pfad mit dem BASE_PATH
+ * Entfernt führende / von relativen Pfaden und fügt BASE_PATH davor an
+ * @param {string} relativePath - Relativer Pfad (z.B. "src/data/exercises.json" oder "/scenarios/...")
+ * @returns {string} Vollständiger Pfad mit BASE_PATH
+ */
+export function getFullPath(relativePath) {
+  if (typeof window === 'undefined') return relativePath;
+  const basePath = window.DIALOGUE_LAB_CONFIG?.BASE_PATH || '';
+  const cleanPath = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
+  return basePath + cleanPath;
+}

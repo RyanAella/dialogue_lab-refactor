@@ -5,7 +5,7 @@
  * Dynamic version that works with path-based configuration.
  */
 
-import { AVATAR_CONFIG, AVATAR_ANIMATION } from "../core/config.js";
+import { AVATAR_CONFIG, AVATAR_ANIMATION, getFullPath } from "../core/config.js";
 
 const { TRANSPARENT_PIXEL, LAYERS } = AVATAR_CONFIG;
 const { MOUTH_INTERVAL, BLINK_DURATION, BLINK_INTERVAL_MIN, BLINK_INTERVAL_MAX } = AVATAR_ANIMATION;
@@ -73,13 +73,20 @@ export const Avatar = {
       ...(profile.hair || []),
       ...(profile.eyesOpen || []),
       ...(profile.mouthsClosed || []),
-    ].map((p) => String(profile.basePath + p));
+      ...(profile.eyesClosed || []),
+      ...(profile.mouthsOpen || []),
+      ...(profile.glasses || []),
+      ...(profile.headset || []),
+    ].map((p) => getFullPath("src/assets/Character/" + p));
 
-    const promises = paths.slice(0, 15).map((src) => {
+    const promises = paths.map((src) => {
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = resolve;
-        img.onerror = resolve; // Continue even if one fails
+        img.onerror = () => {
+          console.warn(`[Avatar] Failed to preload image: ${src}`);
+          resolve();
+        };
         img.src = src;
       });
     });
@@ -185,7 +192,8 @@ export const Avatar = {
         file = (mouthOpen ? s.config.mouthsOpen : s.config.mouthsClosed)?.[s.current.mouth];
         break;
     }
-    return file && file.trim() !== "" ? s.config.basePath + file : "";
+    if (!file || file.trim() === "") return "";
+    return getFullPath("src/assets/Character/" + file);
   },
 
   /**
@@ -202,6 +210,9 @@ export const Avatar = {
       if (elements) {
         elements.forEach((img) => {
           img.src = src;
+          img.onerror = () => {
+            img.src = TRANSPARENT_PIXEL;
+          };
         });
       }
     });

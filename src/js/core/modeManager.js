@@ -56,13 +56,23 @@ export function resetAppForMode(mode) {
 /**
  * Fetches the initial exercise catalog from the server using the ScenarioService.
  * @async
+ * @returns {Promise<boolean>} true if exercises were loaded successfully, false otherwise
  */
 export async function loadExercises() {
   try {
     await ScenarioService.loadPool();
+    if (ScenarioService._exercises.length === 0) {
+      const errorMsg = UI_TEXTS.errors.prefix + " No exercises found in exercises.json";
+      UI.updateStatus("error", errorMsg);
+      showBriefingError(errorMsg);
+      return false;
+    }
+    return true;
   } catch (error) {
-    UI.updateStatus("error", `${UI_TEXTS.errors.prefix} ${error.message}`);
-    showBriefingError(`${UI_TEXTS.errors.prefix} ${error.message}`);
+    const errorMsg = UI_TEXTS.errors.prefix + " " + error.message;
+    UI.updateStatus("error", errorMsg);
+    showBriefingError(errorMsg);
+    return false;
   }
 }
 

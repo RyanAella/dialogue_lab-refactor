@@ -44,66 +44,80 @@
   <script>
     // ============================================
     // Dynamische Modus-Konfiguration für Dialogue Lab
+    // 404.html fungiert als Single-Page-App für alle Pfade
     // ============================================
     (function() {
       const path = window.location.pathname.toLowerCase();
       
-      // Dynamisch BASE_PATH berechnen (für GitHub Pages, lokale Server, etc.)
-      // Extrahiere den Pfad bis zur index.html (oder Root, wenn direkt aufgerufen)
-      const basePath = path.endsWith('/index.html') 
-          ? path.substring(0, path.lastIndexOf('/index.html')) + '/' 
-          : (path.endsWith('/') ? path : path + '/');
+      // Dynamisch BASE_PATH berechnen
+      // Auf GitHub Pages: /dialogue_lab-refactor/
+      // Entferne Modus-spezifische Pfade, um den wahren Basis-Pfad zu finden
+      let basePath = path;
+      const modusPaths = ['/simulation-lab', '/simulation', '/practice-edition', '/practice'];
+      for (const mp of modusPaths) {
+        if (basePath.includes(mp)) {
+          basePath = basePath.split(mp)[0];
+          break;
+        }
+      }
+      // Stelle sicher, dass es mit / endet
+      if (!basePath.endsWith('/')) basePath += '/';
       
-      let modeClass = 'mode-full'; // Standard: Full Version
+      // Fallback: wenn basePath leer oder nur "/", dann ist es der Root
+      if (basePath === '/' && path.includes('/dialogue_lab-refactor/')) {
+        basePath = '/dialogue_lab-refactor/';
+      }
+      
+      let modeClass = 'mode-full';
+      let config;
 
       if (path.includes('/simulation-lab/') || path.includes('/simulation/')) {
         modeClass = 'mode-simulation';
-      } else if (path.includes('/practice-edition/') || path.includes('/practice/')) {
-        modeClass = 'mode-practice';
-      }
-
-      // Klasse zum HTML-Element hinzufügen
-      document.documentElement.classList.add(modeClass);
-
-      // Konfiguration für JavaScript-Module
-      const config = {
-        full: {
-          MODE: 'full',
-          ALLOWED_MODES: ['SIMULATION', 'TRANSFORMATION'],
-          HIDE_SIMULATION: false,
-          HIDE_TRANSFORMATION: false,
-          DEFAULT_MODE: 'SIMULATION',
-          BASE_PATH: basePath
-        },
-        simulation: {
+        config = {
           MODE: 'simulation-only',
           ALLOWED_MODES: ['SIMULATION'],
           HIDE_SIMULATION: false,
           HIDE_TRANSFORMATION: true,
           DEFAULT_MODE: 'SIMULATION',
           BASE_PATH: basePath
-        },
-        practice: {
+        };
+      } else if (path.includes('/practice-edition/') || path.includes('/practice/')) {
+        modeClass = 'mode-practice';
+        config = {
           MODE: 'practice-only',
           ALLOWED_MODES: ['TRANSFORMATION'],
           HIDE_SIMULATION: true,
           HIDE_TRANSFORMATION: false,
           DEFAULT_MODE: 'TRANSFORMATION',
           BASE_PATH: basePath
-        }
-      };
-
-      // Konfiguration basierend auf dem Pfad setzen
-      if (path.includes('/simulation-lab/') || path.includes('/simulation/')) {
-        window.DIALOGUE_LAB_CONFIG = config.simulation;
-      } else if (path.includes('/practice-edition/') || path.includes('/practice/')) {
-        window.DIALOGUE_LAB_CONFIG = config.practice;
+        };
       } else {
-        window.DIALOGUE_LAB_CONFIG = config.full;
+        modeClass = 'mode-full';
+        config = {
+          MODE: 'full',
+          ALLOWED_MODES: ['SIMULATION', 'TRANSFORMATION'],
+          HIDE_SIMULATION: false,
+          HIDE_TRANSFORMATION: false,
+          DEFAULT_MODE: 'SIMULATION',
+          BASE_PATH: basePath
+        };
       }
+
+      // Konfiguration global verfügbar machen
+      window.DIALOGUE_LAB_CONFIG = config;
       
-      console.log('[DEBUG] BASE_PATH set to:', basePath);
+      // Klasse zum HTML-Element hinzufügen
+      document.documentElement.classList.add(modeClass);
+      
     })();
+  </script>
+  <script>
+    // Lade app.js mit dem korrekten BASE_PATH BEVOR DOMContentLoaded feuert
+    const basePath = window.DIALOGUE_LAB_CONFIG.BASE_PATH;
+    const appScript = document.createElement('script');
+    appScript.type = 'module';
+    appScript.src = `${basePath}src/js/core/app.js`;
+    document.head.appendChild(appScript);
   </script>
 </head>
 
@@ -321,6 +335,7 @@
   });
 </script>
 
-<script src="src/js/core/app.js" type="module"></script>
+<script>
+</script>
 </body>
 </html>
